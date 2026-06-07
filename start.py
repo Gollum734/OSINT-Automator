@@ -4,14 +4,14 @@ import sys
 import subprocess
 import shutil
 
-# Color definitions for Kali Linux terminal style
+# Color definitions for Kali terminal styling
 G = '\033[92m'  # Green
 Y = '\033[93m'  # Yellow
 R = '\033[91m'  # Red
 B = '\033[94m'  # Blue
 W = '\033[0m'   # Reset
 
-# Validated, active GitHub repositories (Exact case-sensitivity)
+# Fully corrected and verified GitHub repositories (Case-Sensitive)
 TOOLS_CONFIG = {
     "infra": {
         "subfinder": {"repo": "https://github.com/projectdiscovery/subfinder", "type": "go", "apt": "subfinder"},
@@ -52,7 +52,7 @@ def print_banner():
     """)
 
 def check_and_install_tool(category, tool_name):
-    """Checks tool availability and automates setup via Apt, script, or Git cloning."""
+    """Checks tool availability and automates cloning or installation."""
     target_dir = os.path.join("tools", category, tool_name)
     config = TOOLS_CONFIG[category][tool_name]
     
@@ -76,17 +76,17 @@ def check_and_install_tool(category, tool_name):
             subprocess.run(f"sudo ln -sf $(pwd)/{target_dir}/phoneinfoga /usr/local/bin/phoneinfoga", shell=True)
         return True
 
-    # 3. GitHub Repositories cloning
-    # If directory exists but is broken/empty (except for .gitkeep), clear it to avoid conflicts
+    # 3. Clean up broken/empty directories before cloning to avoid Git conflicts
     if os.path.exists(target_dir) and not os.path.exists(os.path.join(target_dir, ".git")):
         shutil.rmtree(target_dir)
 
+    # 4. GitHub Repositories cloning
     if not os.path.exists(target_dir):
         print(f"{Y}[*] Cloning {tool_name} from GitHub...{W}")
         os.makedirs(os.path.dirname(target_dir), exist_ok=True)
         res = subprocess.run(["git", "clone", config["repo"], target_dir])
         if res.returncode != 0:
-            print(f"{R}[-] Failed to clone {tool_name}. Link might be broken or network issue.{W}")
+            print(f"{R}[-] Failed to clone {tool_name}. Please verify the repository URL.{W}")
             return False
             
     return True
@@ -173,7 +173,7 @@ def run_threat_intel():
     if not domain: return
     
     if check_and_install_tool("intel", "nuclei"):
-        print(f"\n{Y}[*] Checking exposed technologies passivly with Nuclei...{W}")
+        print(f"\n{Y}[*] Checking exposed technologies passively with Nuclei...{W}")
         subprocess.run(["nuclei", "-u", domain, "-tags", "tech,passive"])
         
     input(f"\n{G}[+] Passive threat intel check completed. [ENTER]{W}")
