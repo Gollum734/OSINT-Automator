@@ -1,18 +1,18 @@
-```text
-# Ignore cloned third-party tools
 tools/infra/*
 tools/email/*
 tools/username/*
 tools/phone/*
+tools/intel/*
+
 !tools/infra/.gitkeep
 !tools/email/.gitkeep
 !tools/username/.gitkeep
 !tools/phone/.gitkeep
+!tools/intel/.gitkeep
 
-# Ignore generated pentest reports
 reports/
 
-# Python cache
+
 __pycache__/
 *.pyc
 .pytest_cache/
