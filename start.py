@@ -11,7 +11,7 @@ R = '\033[91m'  # Rot
 B = '\033[94m'  # Blau
 W = '\033[0m'   # Reset
 
-# Absolut korrekte, live geprüfte GitHub-Links
+# Absolut korrekte GitHub-Links (Exakte Groß-/Kleinschreibung)
 TOOLS_CONFIG = {
     "infra": {
         "subfinder": {"repo": "https://github.com/projectdiscovery/subfinder", "type": "go", "apt": "subfinder"},
@@ -76,13 +76,13 @@ def check_and_install_tool(category, tool_name):
             subprocess.run(f"sudo ln -sf $(pwd)/{target_dir}/phoneinfoga /usr/local/bin/phoneinfoga", shell=True)
         return True
 
-    # 3. GitHub Repositories klonen (ohne riskante Pip-Installs im Core-System)
+    # 3. GitHub Repositories klonen
     if not os.path.exists(target_dir):
         print(f"{Y}[*] Klone {tool_name} aus GitHub...{W}")
         os.makedirs(os.path.dirname(target_dir), exist_ok=True)
         res = subprocess.run(["git", "clone", config["repo"], target_dir])
         if res.returncode != 0:
-            print(f"{R}[-] Fehler beim Klonen von {tool_name}. Authentifizierung fehlgeschlagen oder URL falsch.{W}")
+            print(f"{R}[-] Fehler beim Klonen von {tool_name}. Link eventuell veraltet.{W}")
             return False
             
     return True
@@ -113,7 +113,6 @@ def run_infra_recon():
     if check_and_install_tool("infra", "theHarvester"):
         print(f"{Y}[*] Suche öffentliche Kontakte/IPs mit theHarvester...{W}")
         cwd = os.path.join("tools", "infra", "theHarvester")
-        # Ruft das Tool direkt als Python-Modul auf
         subprocess.run(["python3", "theHarvester.py", "-d", domain, "-l", "200", "-b", "anubis,bing,duckduckgo"], cwd=cwd)
 
     input(f"\n{G}[+] Scans beendet. Berichte liegen im Ordner 'reports/'. [ENTER]{W}")
@@ -131,7 +130,6 @@ def run_username_recon():
     if check_and_install_tool("username", "whatsmyname"):
         print(f"\n{Y}[*] Gegenprüfung über WhatsMyName Datenbank...{W}")
         cwd = os.path.join("tools", "username", "whatsmyname")
-        # Sucht dynamisch nach dem Ausführungsskript
         script_path = "whatsmyname.py" if os.path.exists(os.path.join(cwd, "whatsmyname.py")) else "whatsmyname/main.py"
         if os.path.exists(os.path.join(cwd, script_path)):
             subprocess.run(["python3", script_path, "-u", username], cwd=cwd)
@@ -146,8 +144,7 @@ def run_email_recon():
     if check_and_install_tool("email", "holehe"):
         print(f"\n{Y}[*] Analysiere Account-Registrierungen mit Holehe...{W}")
         cwd = os.path.join("tools", "email", "holehe")
-        # Direktaufruf über das interne Skript-Verzeichnis
-        subprocess.run(["python3", "holehe/modules/social/twitter.py", email], cwd=cwd) # Testlauf / Holehe Core
+        subprocess.run(["python3", "holehe/modules/social/twitter.py", email], cwd=cwd)
         
     if check_and_install_tool("email", "infoga"):
         print(f"\n{Y}[*] Suche Leak-Kontexte über Infoga...{W}")
