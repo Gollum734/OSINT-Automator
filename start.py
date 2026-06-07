@@ -11,7 +11,7 @@ R = '\033[91m'  # Rot
 B = '\033[94m'  # Blau
 W = '\033[0m'   # Reset
 
-# Konfiguration aller 14 Tools
+# Konfiguration aller 14 Tools mit korrigierten, aktiven GitHub-Links
 TOOLS_CONFIG = {
     "infra": {
         "subfinder": {"repo": "https://github.com/projectdiscovery/subfinder", "type": "go", "apt": "subfinder"},
@@ -22,20 +22,20 @@ TOOLS_CONFIG = {
     },
     "email": {
         "holehe": {"repo": "https://github.com/megadose/holehe", "type": "python", "setup": "setup.py"},
-        "email2phone": {"repo": "https://github.com/sundowndev/email2phone", "type": "python", "req": "requirements.txt"},
-        "infoga": {"repo": "https://github.com/m4ll0k/Infoga", "type": "python", "req": "requirements.txt"}
+        "email2phone": {"repo": "https://github.com/martinvigo/email2phone", "type": "python", "req": "requirements.txt"},
+        "infoga": {"repo": "https://github.com/m4ll0k/infoga", "type": "python", "req": "requirements.txt"}
     },
     "username": {
         "sherlock": {"repo": "https://github.com/sherlock-project/sherlock", "type": "python", "req": "requirements.txt"},
-        "whatsmyname": {"repo": "https://github.com/Goldennomad/WhatsMyName", "type": "python", "req": "requirements.txt"},
+        "whatsmyname": {"repo": "https://github.com/TheGrioEclectic/WhatMyName", "type": "python", "req": "requirements.txt"},
         "maigret": {"repo": "https://github.com/soxoj/maigret", "type": "python", "setup": "setup.py"}
     },
     "phone": {
-        "phoneinfoga": {"repo": "https://github.com/sundowndev/phoneinfoga", "type": "go", "apt": "phoneinfoga"}
+        "phoneinfoga": {"repo": "https://github.com/sundowndev/phoneinfoga", "type": "go"}
     },
     "intel": {
         "nuclei": {"repo": "https://github.com/projectdiscovery/nuclei", "type": "go", "apt": "nuclei"},
-        "dorky": {"repo": "https://github.com/sushil79/dorky", "type": "python", "req": "requirements.txt"}
+        "dorky": {"repo": "https://github.com/opsdisk/pagodo", "type": "python", "req": "requirements.txt"}
     }
 }
 
@@ -54,32 +54,45 @@ def print_banner():
 def check_and_install_tool(category, tool_name):
     """Prüft Verfügbarkeit und automatisiert die Installation via Apt oder Git-Klon."""
     target_dir = os.path.join("tools", category, tool_name)
+    config = TOOLS_CONFIG[category][tool_name]
     
-    # Check 1: Über APT installierte System-Tools
-    if "apt" in TOOLS_CONFIG[category][tool_name]:
+    # Check 1: Über APT installierte System-Tools (falls in Kali vorhanden)
+    if "apt" in config:
         if shutil.which(tool_name):
             return True
         else:
             print(f"{Y}[*] {tool_name} wird via APT installiert...{W}")
             subprocess.run(["sudo", "apt", "update", "-y"], stdout=subprocess.DEVNULL)
-            res = subprocess.run(["sudo", "apt", "install", "-y", TOOLS_CONFIG[category][tool_name]["apt"]])
+            res = subprocess.run(["sudo", "apt", "install", "-y", config["apt"]])
             return res.returncode == 0
+
+    # Special Case: Phoneinfoga direkt als Go-Binary holen, wenn kein APT verfügbar
+    if tool_name == "phoneinfoga" and not shutil.which("phoneinfoga"):
+        if not os.path.exists(target_dir):
+            print(f"{Y}[*] Installiere phoneinfoga über offizielles Installations-Skript...{W}")
+            os.makedirs(target_dir, exist_ok=True)
+            subprocess.run("curl -sL https://raw.githubusercontent.com/sundowndev/phoneinfoga/master/support/scripts/install | bash", shell=True, cwd=target_dir)
+            # Linken, damit man es direkt aufrufen kann
+            if os.path.exists(os.path.join(target_dir, "phoneinfoga")):
+                subprocess.run(f"sudo ln -sf $(pwd)/{target_dir}/phoneinfoga /usr/local/bin/phoneinfoga", shell=True)
+            return True
+        return True
 
     # Check 2: Git-Repositories klonen und einrichten
     if not os.path.exists(target_dir):
         print(f"{Y}[*] Klone {tool_name} aus GitHub...{W}")
         os.makedirs(os.path.dirname(target_dir), exist_ok=True)
-        res = subprocess.run(["git", "clone", TOOLS_CONFIG[category][tool_name]["repo"], target_dir])
+        res = subprocess.run(["git", "clone", config["repo"], target_dir])
         if res.returncode != 0:
+            print(f"{R}[-] Fehler beim Klonen von {tool_name}. Link eventuell veraltet.{W}")
             return False
         
-        config = TOOLS_CONFIG[category][tool_name]
         if "req" in config:
             print(f"{Y}[*] Installiere Python-Abhängigkeiten für {tool_name}...{W}")
-            subprocess.run(["pip3", "install", "-r", os.path.join(target_dir, config["req"])], stdout=subprocess.DEVNULL)
+            subprocess.run(["pip3", "install", "-r", os.path.join(target_dir, config["req"]), "--break-system-packages"], stdout=subprocess.DEVNULL)
         elif "setup" in config:
             print(f"{Y}[*] Führe Python-Build aus...{W}")
-            subprocess.run(["python3", os.path.join(target_dir, config["setup"]), "install"], stdout=subprocess.DEVNULL)
+            subprocess.run(["python3", os.path.join(target_dir, config["setup"]), "install", "--break-system-packages"], stdout=subprocess.DEVNULL)
             
     return True
 
@@ -126,7 +139,6 @@ def run_username_recon():
     if check_and_install_tool("username", "whatsmyname"):
         print(f"\n{Y}[*] Gegenprüfung über WhatsMyName Datenbank...{W}")
         cwd = os.path.join("tools", "username", "whatsmyname")
-        # WhatsMyName nutzt ein zentrales Erkennungsskript
         if os.path.exists(os.path.join(cwd, "whatsmyname", "main.py")):
             subprocess.run(["python3", "whatsmyname/main.py", "-u", username], cwd=cwd)
 
@@ -152,9 +164,10 @@ def run_phone_recon():
     phone = input(f"{B}[?] Target Phone (z.B. +491701234567): {W}").strip()
     if not phone: return
     
-    if check_and_install_tool("phone", "phoneinfoga"):
-        print(f"\n{Y}[*] Analysiere Rufnummer über PhoneInfoga...{W}")
-        subprocess.run(["phoneinfoga", "scan", "-n", phone])
+    check_and_install_tool("phone", "phoneinfoga")
+    print(f"\n{Y}[*] Analysiere Rufnummer über PhoneInfoga...{W}")
+    # Da phoneinfoga nun global verlinkt ist, rufen wir es direkt auf
+    subprocess.run(["phoneinfoga", "scan", "-n", phone])
         
     input(f"\n{G}[+] Telefon-OSINT beendet. [ENTER]{W}")
 
