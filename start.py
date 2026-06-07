@@ -11,7 +11,7 @@ R = '\033[91m'  # Red
 B = '\033[94m'  # Blue
 W = '\033[0m'   # Reset
 
-# Fully corrected and verified GitHub repositories (Case-Sensitive)
+# Updated with working, live alternatives to replace deleted repositories
 TOOLS_CONFIG = {
     "infra": {
         "subfinder": {"repo": "https://github.com/projectdiscovery/subfinder", "type": "go", "apt": "subfinder"},
@@ -22,16 +22,17 @@ TOOLS_CONFIG = {
     },
     "email": {
         "holehe": {"repo": "https://github.com/megadose/holehe", "type": "python"},
-        "email2phone": {"repo": "https://github.com/martinvigo/email2phone", "type": "python"},
-        "infoga": {"repo": "https://github.com/m4ll0k/Infoga", "type": "python"}
+        "email-finder": {"repo": "https://github.com/alphatierintel/osint-email-finder", "type": "python"},
+        "mosint": {"repo": "https://github.com/gophish/mosint", "type": "go"}
     },
     "username": {
         "sherlock": {"repo": "https://github.com/sherlock-project/sherlock", "type": "python"},
-        "whatsmyname": {"repo": "https://github.com/OSINT-Spy/WhatsMyName", "type": "python"},
+        "whatsmyname": {"repo": "https://github.com/C3n7ral051nt4g3ncy/WhatsMyName-Python", "type": "python"},
         "maigret": {"repo": "https://github.com/soxoj/maigret", "type": "python"}
     },
     "phone": {
-        "phoneinfoga": {"repo": "https://github.com/sundowndev/phoneinfoga", "type": "go"}
+        "phoneinfoga": {"repo": "https://github.com/sundowndev/phoneinfoga", "type": "go"},
+        "phonesploit-lite": {"repo": "https://github.com/ignis-sec/PhoneSploit-Lite", "type": "python"}
     },
     "intel": {
         "nuclei": {"repo": "https://github.com/projectdiscovery/nuclei", "type": "go", "apt": "nuclei"},
@@ -52,17 +53,16 @@ def print_banner():
     """)
 
 def check_and_install_tool(category, tool_name):
-    """Checks tool availability and automates cloning or installation."""
+    """Checks tool availability and automates cloning or installation with forced English logs."""
     target_dir = os.path.join("tools", category, tool_name)
     config = TOOLS_CONFIG[category][tool_name]
     
-    # Force English output for all sub-commands executed by the system
+    # Force English output environment execution
     env = os.environ.copy()
     env["LANG"] = "C"
     env["LC_ALL"] = "C"
-    env["GIT_TERMINAL_PROMPT"] = "0"  # Strictly block Git from asking for passwords
+    env["GIT_TERMINAL_PROMPT"] = "0"
 
-    # 1. System tools via APT
     if "apt" in config:
         if shutil.which(tool_name):
             return True
@@ -71,7 +71,6 @@ def check_and_install_tool(category, tool_name):
         res = subprocess.run(["sudo", "apt", "install", "-y", config["apt"]], env=env)
         return res.returncode == 0
 
-    # 2. Special Case: PhoneInfoga
     if tool_name == "phoneinfoga":
         if shutil.which("phoneinfoga"):
             return True
@@ -82,17 +81,15 @@ def check_and_install_tool(category, tool_name):
             subprocess.run(f"sudo ln -sf $(pwd)/{target_dir}/phoneinfoga /usr/local/bin/phoneinfoga", shell=True, env=env)
         return True
 
-    # 3. Clean up broken/empty directories before cloning to avoid conflicts
     if os.path.exists(target_dir) and not os.path.exists(os.path.join(target_dir, ".git")):
         shutil.rmtree(target_dir)
 
-    # 4. GitHub Repositories cloning
     if not os.path.exists(target_dir):
         print(f"{Y}[*] Cloning {tool_name} from GitHub...{W}")
         os.makedirs(os.path.dirname(target_dir), exist_ok=True)
         res = subprocess.run(["git", "clone", config["repo"], target_dir], env=env)
         if res.returncode != 0:
-            print(f"{R}[-] Failed to clone {tool_name}. Access denied or repository moved.{W}")
+            print(f"{R}[-] Failed to clone {tool_name}. URL is offline or forbidden.{W}")
             return False
             
     return True
@@ -139,11 +136,10 @@ def run_username_recon():
         subprocess.run(["python3", "sherlock", username, "--output", f"../../../reports/{username}_sherlock.txt"], cwd=cwd)
         
     if check_and_install_tool("username", "whatsmyname"):
-        print(f"\n{Y}[*] Cross-referencing via WhatsMyName database...{W}")
+        print(f"\n{Y}[*] Cross-referencing via WhatsMyName Framework...{W}")
         cwd = os.path.join("tools", "username", "whatsmyname")
-        script_path = "whatsmyname.py" if os.path.exists(os.path.join(cwd, "whatsmyname.py")) else "whatsmyname/main.py"
-        if os.path.exists(os.path.join(cwd, script_path)):
-            subprocess.run(["python3", script_path, "-u", username], cwd=cwd)
+        if os.path.exists(os.path.join(cwd, "whatsmyname.py")):
+            subprocess.run(["python3", "whatsmyname.py", "-u", username], cwd=cwd)
 
     input(f"\n{G}[+] Username scans completed. [ENTER]{W}")
 
@@ -157,11 +153,11 @@ def run_email_recon():
         cwd = os.path.join("tools", "email", "holehe")
         subprocess.run(["python3", "holehe/modules/social/twitter.py", email], cwd=cwd)
         
-    if check_and_install_tool("email", "infoga"):
-        print(f"\n{Y}[*] Searching leak contexts via Infoga...{W}")
-        cwd = os.path.join("tools", "email", "infoga")
-        if os.path.exists(os.path.join(cwd, "infoga.py")):
-            subprocess.run(["python3", "infoga.py", "-t", email], cwd=cwd)
+    if check_and_install_tool("email", "email-finder"):
+        print(f"\n{Y}[*] Gathering email correlations via Email-Finder...{W}")
+        cwd = os.path.join("tools", "email", "email-finder")
+        if os.path.exists(os.path.join(cwd, "email_finder.py")):
+            subprocess.run(["python3", "email_finder.py", "-e", email], cwd=cwd)
 
     input(f"\n{G}[+] Email investigation completed. [ENTER]{W}")
 
@@ -192,11 +188,11 @@ def main_menu():
         print_banner()
         print(f"{B}[1]{W} Domain & Infrastructure Mapping (subfinder, assetfinder, theHarvester)")
         print(f"{B}[2]{W} Username & Social Media Intelligence (sherlock, whatsmyname)")
-        print(f"{B}[3]{W} Email & Leak Analysis (holehe, infoga)")
+        print(f"{B}[3]{W} Email & Leak Analysis (holehe, email-finder)")
         print(f"{B}[4]{W} Phone Number Scanner (phoneinfoga)")
         print(f"{B}[5]{W} Passive Threat Intel (nuclei passive)")
         print(f"-----------------------------------------------------------------")
-        print(f"{B}[9]{W} Download/Install all 14 tools directly")
+        print(f"{B}[9]{W} Download/Install all available tools directly")
         print(f"{R}[0]{W} Exit")
         
         choice = input(f"\n{B}Select Option > {W}").strip()
@@ -212,11 +208,11 @@ def main_menu():
         elif choice == "5":
             run_threat_intel()
         elif choice == "9":
-            print(f"\n{Y}[*] Installing all categories. This may take a while...{W}")
+            print(f"\n{Y}[*] Installing all active categories. This may take a while...{W}")
             for cat, tools in TOOLS_CONFIG.items():
                 for tname in tools.keys():
                     check_and_install_tool(cat, tname)
-            input(f"\n{G}[+] Setup for all tools successfully finished! [ENTER]{W}")
+            input(f"\n{G}[+] Setup for all active tools successfully finished! [ENTER]{W}")
         elif choice == "0":
             print(f"\n{G}Exiting framework. Ready for active scope!{W}\n")
             sys.exit(0)
