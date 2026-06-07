@@ -56,27 +56,33 @@ def check_and_install_tool(category, tool_name):
     target_dir = os.path.join("tools", category, tool_name)
     config = TOOLS_CONFIG[category][tool_name]
     
+    # Force English output for all sub-commands executed by the system
+    env = os.environ.copy()
+    env["LANG"] = "C"
+    env["LC_ALL"] = "C"
+    env["GIT_TERMINAL_PROMPT"] = "0"  # Strictly block Git from asking for passwords
+
     # 1. System tools via APT
     if "apt" in config:
         if shutil.which(tool_name):
             return True
         print(f"{Y}[*] Installing {tool_name} via APT...{W}")
-        subprocess.run(["sudo", "apt", "update", "-y"], stdout=subprocess.DEVNULL)
-        res = subprocess.run(["sudo", "apt", "install", "-y", config["apt"]])
+        subprocess.run(["sudo", "apt", "update", "-y"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+        res = subprocess.run(["sudo", "apt", "install", "-y", config["apt"]], env=env)
         return res.returncode == 0
 
-    # 2. Special Case: PhoneInfoga via official binary script
+    # 2. Special Case: PhoneInfoga
     if tool_name == "phoneinfoga":
         if shutil.which("phoneinfoga"):
             return True
         print(f"{Y}[*] Installing phoneinfoga via official script...{W}")
         os.makedirs(target_dir, exist_ok=True)
-        subprocess.run("curl -sL https://raw.githubusercontent.com/sundowndev/phoneinfoga/master/support/scripts/install | bash", shell=True, cwd=target_dir)
+        subprocess.run("curl -sL https://raw.githubusercontent.com/sundowndev/phoneinfoga/master/support/scripts/install | bash", shell=True, cwd=target_dir, env=env)
         if os.path.exists(os.path.join(target_dir, "phoneinfoga")):
-            subprocess.run(f"sudo ln -sf $(pwd)/{target_dir}/phoneinfoga /usr/local/bin/phoneinfoga", shell=True)
+            subprocess.run(f"sudo ln -sf $(pwd)/{target_dir}/phoneinfoga /usr/local/bin/phoneinfoga", shell=True, env=env)
         return True
 
-    # 3. Clean up broken/empty directories before cloning to avoid Git conflicts
+    # 3. Clean up broken/empty directories before cloning to avoid conflicts
     if os.path.exists(target_dir) and not os.path.exists(os.path.join(target_dir, ".git")):
         shutil.rmtree(target_dir)
 
@@ -84,9 +90,9 @@ def check_and_install_tool(category, tool_name):
     if not os.path.exists(target_dir):
         print(f"{Y}[*] Cloning {tool_name} from GitHub...{W}")
         os.makedirs(os.path.dirname(target_dir), exist_ok=True)
-        res = subprocess.run(["git", "clone", config["repo"], target_dir])
+        res = subprocess.run(["git", "clone", config["repo"], target_dir], env=env)
         if res.returncode != 0:
-            print(f"{R}[-] Failed to clone {tool_name}. Please verify the repository URL.{W}")
+            print(f"{R}[-] Failed to clone {tool_name}. Access denied or repository moved.{W}")
             return False
             
     return True
@@ -117,7 +123,8 @@ def run_infra_recon():
     if check_and_install_tool("infra", "theHarvester"):
         print(f"{Y}[*] Gathering public contacts/IPs via theHarvester...{W}")
         cwd = os.path.join("tools", "infra", "theHarvester")
-        subprocess.run(["python3", "theHarvester.py", "-d", domain, "-l", "200", "-b", "anubis,bing,duckduckgo"], cwd=cwd)
+        if os.path.exists(os.path.join(cwd, "theHarvester.py")):
+            subprocess.run(["python3", "theHarvester.py", "-d", domain, "-l", "200", "-b", "anubis,bing,duckduckgo"], cwd=cwd)
 
     input(f"\n{G}[+] Scans completed. Reports saved to 'reports/'. [ENTER]{W}")
 
