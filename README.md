@@ -30,7 +30,7 @@ Plaintext
 
 Clone this repository and run the script. The framework will automatically handle the missing dependencies and clone all tools upon their first execution.
 
-    git clone https://github.com//OSINT-Automator.git
+    git clone https://github.com/Gollum734/OSINT-Automator.git
     cd YOUR-REPO-NAME
     pip3 install -r requirements.txt
     chmod +x start.py
