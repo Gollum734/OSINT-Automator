@@ -7,7 +7,7 @@ A modular Python wrapper designed for penetration testers to automate the passiv
 OSINT-Automator/
 ├── start.py                # Main controller & interactive menu
 ├── requirements.txt         # Core Python dependencies
-├── .gitignore               # Keeps your repo clean from reports/tools
+├── .gitignore               
 └── tools/                  # Managed sub-directories for cloned tools
     ├── infra/
     ├── email/
